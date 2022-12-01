@@ -1,0 +1,54 @@
+version: 2.1
+
+orbs:
+  node: circleci/node@4.1.0
+  aws-cli: circleci/aws-cli@1.3.0
+
+jobs:
+  validate:
+    executor: node/default
+    steps:
+      - checkout
+      - aws-cli/setup
+      - run:
+          name: Validate CloudFormation
+          command: |
+            aws cloudformation validate-template \
+              --template-body file://template.json \
+              --region us-east-1
+
+  deploy:
+    executor: node/default
+    steps:
+      - checkout
+      - aws-cli/setup
+      - run:
+          name: Deploy Cloudformation
+          command: |
+            DOMAIN=$([ "$CIRCLE_BRANCH" == "main" ] && echo "fromtheforest.io" || echo "dev.fromtheforest.io")
+            aws cloudformation deploy \
+              --stack-name "ftf-$CIRCLE_BRANCH-api" \
+              --template-file ./template.json \
+              --no-fail-on-empty-changeset \
+              --parameter-overrides \
+                "ResourceNamespace=ftf-${CIRCLE_BRANCH}-api" \
+                "SSMNamespace=/ftf/${CIRCLE_BRANCH}/api" \
+                Stage=v1 \
+                Subdomain=api \
+                "Domain=$DOMAIN"
+
+workflows:
+  version: 2
+  primary:
+    jobs:
+      - validate:
+          context: cuffney
+      - deploy:
+          context: cuffney
+          requires:
+            - validate
+          filters:
+            branches:
+              only:
+                - dev
+                - main
