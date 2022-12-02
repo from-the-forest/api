@@ -42,9 +42,9 @@ workflows:
   primary:
     jobs:
       - validate:
-          context: cuffney
+          context: ftf
       - deploy:
-          context: cuffney
+          context: ftf
           requires:
             - validate
           filters:
